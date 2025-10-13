@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "655993768059",
+    "project_id": "my-application-afe9a",
+    "storage_bucket": "my-application-afe9a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:655993768059:android:de342c1fcfcd4f7a4ffade",
+        "android_client_info": {
+          "package_name": "com.example.myapplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDindb-JqKzK1enpnnruqWY04z7nAgO8Ac"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
