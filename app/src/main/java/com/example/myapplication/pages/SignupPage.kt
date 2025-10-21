@@ -40,7 +40,7 @@ fun SignupPage(modifier: Modifier = Modifier,navController: NavController,authVi
     var prezime by remember {
         mutableStateOf("")
     }
-    var telefon by remember {
+    var phoneNumber by remember {
         mutableStateOf("")
     }
 
@@ -95,9 +95,9 @@ fun SignupPage(modifier: Modifier = Modifier,navController: NavController,authVi
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
-            value = telefon,
+            value = phoneNumber,
             onValueChange = {
-                telefon = it
+                phoneNumber = it
             },
             label = {
                 Text(text = "Phone number")
@@ -129,7 +129,7 @@ fun SignupPage(modifier: Modifier = Modifier,navController: NavController,authVi
 
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = {
-            authViewModel.signup2(email, password, ime, prezime, telefon)
+            authViewModel.signup2(email, password, ime, prezime, phoneNumber)
             //authViewModel.signup(email,password)
         }) {
             Text(text = "Create account")

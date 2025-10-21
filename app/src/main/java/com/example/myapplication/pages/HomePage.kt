@@ -1,50 +1,38 @@
 package com.example.myapplication.pages
 
+import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.LocationManager
+import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getCurrentCompositionErrors
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.core.location.LocationManagerCompat.getCurrentLocation
 import androidx.navigation.NavController
-import com.example.myapplication.AuthState
 import com.example.myapplication.AuthViewModel
+import com.example.myapplication.filter.FilterDialog
+import com.example.myapplication.filter.MasterRankingDialog
+import com.example.myapplication.models.AddMarkerDialog
 import com.example.myapplication.maps.GoogleMapComponent
+import com.example.myapplication.models.Master
+import com.example.myapplication.models.Job
+import com.example.myapplication.models.MasterJobRepository
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapProperties
-import com.google.maps.android.compose.MapType
-import com.google.maps.android.compose.MapUiSettings
-import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.firebase.firestore.GeoPoint
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 @Composable
@@ -53,57 +41,264 @@ fun HomePage(
     navController: NavController,
     authViewModel: AuthViewModel
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
-        // JEDNOSTAVAN HEADER
-        HomeHeader(
+
+    var showAddMarkerDialog by remember { mutableStateOf(false) }
+    var showMastersList by remember { mutableStateOf(false) }
+    var showFilters by remember { mutableStateOf(false) }
+    var selectedLocation by remember { mutableStateOf<LatLng?>(null) }
+    var userLocation by remember { mutableStateOf<LatLng?>(null) }
+
+    var showMasterRankingDialog by remember { mutableStateOf(false) }
+    var rankedMasters by remember { mutableStateOf<List<Master>>(emptyList()) }
+    val masterJobRepository = remember { MasterJobRepository() }
+    val currentUser by authViewModel.currentUser.observeAsState()
+    val userData by authViewModel.userData.observeAsState()
+    val coroutineScope = rememberCoroutineScope()
+
+    // STATE ZA PODATKE
+    var masters by remember { mutableStateOf<List<Master>>(emptyList()) }
+    var jobs by remember { mutableStateOf<List<Job>>(emptyList()) }
+    val context = LocalContext.current
+
+    // UCITAJ PODATKE PRI POKRETANJU
+    LaunchedEffect(Unit) {
+        authViewModel.loadCurrentUserData()
+        userLocation = getCurrentUserLocation(context)
+
+        masterJobRepository.listenToMasters { updatedMasters ->
+            masters = updatedMasters
+        }
+
+        masterJobRepository.listenToJobs { updatedJobs ->
+            jobs = updatedJobs
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        GoogleMapComponent(
+            modifier = Modifier.fillMaxSize(),
             authViewModel = authViewModel,
-            navController = navController
+            onMapClick = { latLng ->
+                selectedLocation = latLng
+            },
+            masters = masters,
+            jobs = jobs,
+            selectedLocation = selectedLocation
         )
 
-        // MAPA SA MARKEROM NA TRENUTNOJ LOKACIJI
-        GoogleMapComponent(
+        // DUGMAD
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .weight(1f)
+                .align(Alignment.BottomStart)
+                .padding(start = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FloatingActionButton(
+                onClick = { if (selectedLocation != null) showAddMarkerDialog = true },
+                modifier = Modifier.size(56.dp),
+                containerColor = if (selectedLocation != null) MaterialTheme.colorScheme.primary else Color.Gray,
+                contentColor = Color.White
+            ) { Icon(Icons.Default.Add, "Dodaj marker") }
+
+            FloatingActionButton(
+                onClick = { showMasterRankingDialog = true },
+                modifier = Modifier.size(56.dp),
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = Color.White
+            ) { Icon(Icons.Default.List, "Lista majstora") }
+
+            FloatingActionButton(
+                onClick = { showFilters = true },
+                modifier = Modifier.size(56.dp),
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = Color.White
+            ) { Icon(Icons.Default.FilterAlt, "Filteri") }
+
+            FloatingActionButton(
+                onClick = {
+                    authViewModel.signout()
+                    navController.navigate("login")
+                },
+                modifier = Modifier.size(56.dp),
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = Color.White
+            ) { Icon(Icons.Default.Logout, "Odjavi se") }
+        }
+    }
+
+
+    if (showAddMarkerDialog && selectedLocation != null) {
+        AddMarkerDialog(
+            onDismiss = { showAddMarkerDialog = false },
+            onAddMaster = { masterData ->
+                coroutineScope.launch {
+                    val newMaster = Master(
+                        name = userData?.get("ime") as? String ?: "",
+                        profession = masterData["profession"]?.trim()?.lowercase() ?: "",
+                        location = GeoPoint(selectedLocation!!.latitude, selectedLocation!!.longitude),
+                        phone = userData?.get("phoneNumber") as? String ?: "",
+                        email = userData?.get("email") as? String ?: currentUser?.email ?: "",
+                        description = masterData["description"] ?: "",
+                        createdBy = currentUser?.uid ?: "anonymous",
+                        rating = 0.0,
+                        reviewCount = 0,
+                        isAvailable = true
+                    )
+                    masterJobRepository.addMaster(newMaster)
+                    selectedLocation = null
+                    showAddMarkerDialog = false
+                }
+            },
+            onAddJob = { jobData ->
+                coroutineScope.launch {
+                    val newJob = Job(
+                        title = jobData["title"] ?: "",
+                        description = jobData["description"] ?: "",
+                        location = GeoPoint(selectedLocation!!.latitude, selectedLocation!!.longitude),
+                        profession = jobData["profession"] ?: "",
+                        urgency = jobData["urgency"] ?: "Normal",
+                        budget = jobData["budget"] ?: "",
+                        createdBy = currentUser?.uid ?: "anonymous",
+                        createdByEmail = currentUser?.email ?: "anonymous",
+                        contactPhone = jobData["phone"] ?: "",
+                        address = jobData["address"] ?: "",
+                        status = "Open"
+                    )
+                    masterJobRepository.addJob(newJob)
+                    selectedLocation = null
+                    showAddMarkerDialog = false
+                }
+            }
         )
+    }
+
+    if (showMasterRankingDialog) {
+        MasterRankingDialog(
+            masters = masters,
+            masterJobRepository = masterJobRepository,
+            onDismiss = { showMasterRankingDialog = false },
+            onUpdateMasters = { updatedMasters -> masters = updatedMasters }
+        )
+    }
+
+    if (showFilters) {
+        FilterDialog(
+            onDismiss = { showFilters = false },
+            onApplyFilters = { filterData ->
+                coroutineScope.launch {
+                    when (filterData.targetType) {
+                        "masters" -> {
+                            masters = when (filterData.searchType) {
+                                "profession" -> filterData.profession?.let {
+                                    masterJobRepository.searchMastersByProfession(it)
+                                } ?: masterJobRepository.getAllMasters()
+                                "radius" -> filterData.userLocation?.let {
+                                    masterJobRepository.searchMastersByRadius(
+                                        it.latitude,
+                                        it.longitude,
+                                        filterData.radius?.toDouble() ?: 2000.0
+                                    )
+                                } ?: masterJobRepository.getAllMasters()
+                                "both" -> if (filterData.profession != null && filterData.userLocation != null) {
+                                    masterJobRepository.searchMastersByProfessionAndRadius(
+                                        filterData.profession,
+                                        filterData.userLocation.latitude,
+                                        filterData.userLocation.longitude,
+                                        filterData.radius?.toDouble() ?: 2000.0
+                                    )
+                                } else masterJobRepository.getAllMasters()
+                                else -> masterJobRepository.getAllMasters()
+                            }
+                        }
+                        "jobs" -> {
+                            jobs = when (filterData.searchType) {
+                                "profession" -> filterData.profession?.let {
+                                    masterJobRepository.searchJobsByProfession(it)
+                                } ?: masterJobRepository.getAllJobs()
+                                "radius" -> filterData.userLocation?.let {
+                                    masterJobRepository.searchJobsByRadius(
+                                        it.latitude,
+                                        it.longitude,
+                                        filterData.radius?.toDouble() ?: 2000.0
+                                    )
+                                } ?: masterJobRepository.getAllJobs()
+                                "both" -> if (filterData.profession != null && filterData.userLocation != null) {
+                                    masterJobRepository.searchJobsByProfessionAndRadius(
+                                        filterData.profession,
+                                        filterData.userLocation.latitude,
+                                        filterData.userLocation.longitude,
+                                        filterData.radius?.toDouble() ?: 2000.0
+                                    )
+                                } else masterJobRepository.getAllJobs()
+                                else -> masterJobRepository.getAllJobs()
+                            }
+                        }
+                    }
+                    showFilters = false
+                }
+
+            },
+            onResetFilters = {
+                coroutineScope.launch {
+                    masters = masterJobRepository.getAllMasters()
+                    jobs = masterJobRepository.getAllJobs()
+                    showFilters = false
+                }
+                },
+            userLocation = userLocation
+        )
+    }
+
+}
+private suspend fun getCurrentUserLocation(context: android.content.Context): LatLng? {
+    return try {
+        // 👇 EKSPLICITNO PROVERI DOZVOLE
+        if (!hasLocationPermission(context)) {
+            return LatLng(43.32,21.90) // Fallback lokacija
+        }
+
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+
+        // 👇 EKSPLICITNO HANDLE-UJ SecurityException
+        try {
+            val location = fusedLocationClient.lastLocation.await()
+            location?.let { LatLng(it.latitude, it.longitude) }
+                ?: getNetworkLocation(context)
+                ?: LatLng(43.32,21.90)
+        } catch (e: SecurityException) {
+            // Ako korisnik nije dao dozvolu, vrati fallback
+            LatLng(43.32,21.90)
+        }
+
+    } catch (e: Exception) {
+        LatLng(43.32,21.90)
     }
 }
 
-@Composable
-private fun HomeHeader(
-    authViewModel: AuthViewModel,
-    navController: NavController
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        // MAPA U POZADINI
-        GoogleMapComponent(
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // DUGME ZA ODJAVU U DONJEM LEVOM UGLU
-        OutlinedButton(
-            onClick = {
-                authViewModel.signout()
-                navController.navigate("login")
-            },
-            modifier = Modifier
-                .align(Alignment.BottomStart)   // 👈 Donji levi ugao
-                .padding(start = 16.dp, bottom = 32.dp),  // Malo odstojanje od ivica
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.White.copy(alpha = 0.5f),
-                contentColor = Color.Black
-            )
-        ) {
-            Icon(
-                Icons.Default.Logout,
-                contentDescription = "Odjavi se",
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("Odjavi se")
+@RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
+private fun getNetworkLocation(context: Context): LatLng? {
+    return try {
+        // 👇 PROVERI DOZVOLE I OVDE
+        if (!hasLocationPermission(context)) {
+            return null
         }
+
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val networkProvider = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+        networkProvider?.let { LatLng(it.latitude, it.longitude) }
+    } catch (e: SecurityException) {
+        null
+    } catch (e: Exception) {
+        null
     }
+}
+
+private fun hasLocationPermission(context: Context): Boolean {
+    return ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.ACCESS_COARSE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
 }

@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
+
 }
 
 android {
@@ -55,7 +56,14 @@ android {
 }
 
 dependencies {
-
+    implementation(libs.androidx.navigation.compose.v275)
+    implementation(libs.firebase.messaging.ktx)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.google.firebase.firestore)
+    implementation(libs.google.firebase.messaging)
+    implementation(libs.google.firebase.analytics)
+    implementation(libs.google.firebase.auth)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.messaging)
