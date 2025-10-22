@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -43,24 +45,21 @@ fun HomePage(
 ) {
 
     var showAddMarkerDialog by remember { mutableStateOf(false) }
-    var showMastersList by remember { mutableStateOf(false) }
     var showFilters by remember { mutableStateOf(false) }
     var selectedLocation by remember { mutableStateOf<LatLng?>(null) }
     var userLocation by remember { mutableStateOf<LatLng?>(null) }
 
+    var showMarkerTable by remember { mutableStateOf(false) }
     var showMasterRankingDialog by remember { mutableStateOf(false) }
-    var rankedMasters by remember { mutableStateOf<List<Master>>(emptyList()) }
     val masterJobRepository = remember { MasterJobRepository() }
     val currentUser by authViewModel.currentUser.observeAsState()
     val userData by authViewModel.userData.observeAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    // STATE ZA PODATKE
     var masters by remember { mutableStateOf<List<Master>>(emptyList()) }
     var jobs by remember { mutableStateOf<List<Job>>(emptyList()) }
     val context = LocalContext.current
 
-    // UCITAJ PODATKE PRI POKRETANJU
     LaunchedEffect(Unit) {
         authViewModel.loadCurrentUserData()
         userLocation = getCurrentUserLocation(context)
@@ -86,7 +85,6 @@ fun HomePage(
             selectedLocation = selectedLocation
         )
 
-        // DUGMAD
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -99,6 +97,15 @@ fun HomePage(
                 containerColor = if (selectedLocation != null) MaterialTheme.colorScheme.primary else Color.Gray,
                 contentColor = Color.White
             ) { Icon(Icons.Default.Add, "Dodaj marker") }
+
+            FloatingActionButton(
+                onClick = { showMarkerTable = true },
+                modifier = Modifier.size(56.dp),
+                containerColor = if (selectedLocation != null) MaterialTheme.colorScheme.primary else Color.Gray,
+                contentColor = Color.White
+            ) {
+                Icon(Icons.Default.Place, contentDescription = "Lista markera")
+            }
 
             FloatingActionButton(
                 onClick = { showMasterRankingDialog = true },
@@ -160,15 +167,24 @@ fun HomePage(
                         budget = jobData["budget"] ?: "",
                         createdBy = currentUser?.uid ?: "anonymous",
                         createdByEmail = currentUser?.email ?: "anonymous",
-                        contactPhone = jobData["phone"] ?: "",
+                        contactPhone = userData?.get("phoneNumber") as? String ?: "030300330",
                         address = jobData["address"] ?: "",
                         status = "Open"
                     )
+                    Log.e("MasterJobRepository", "Greška pri dodavanju posla: ${userData?.get("phoneNumber")}")
                     masterJobRepository.addJob(newJob)
                     selectedLocation = null
                     showAddMarkerDialog = false
                 }
             }
+        )
+    }
+
+    if (showMarkerTable) {
+        MarkerTableDialog(
+            masters = masters,
+            jobs = jobs,
+            onDismiss = { showMarkerTable = false }
         )
     }
 
@@ -252,24 +268,20 @@ fun HomePage(
 }
 private suspend fun getCurrentUserLocation(context: android.content.Context): LatLng? {
     return try {
-        // 👇 EKSPLICITNO PROVERI DOZVOLE
+        // EKSPLICITNO PROVERI DOZVOLE
         if (!hasLocationPermission(context)) {
             return LatLng(43.32,21.90) // Fallback lokacija
         }
-
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-
-        // 👇 EKSPLICITNO HANDLE-UJ SecurityException
+        //  SecurityException
         try {
             val location = fusedLocationClient.lastLocation.await()
             location?.let { LatLng(it.latitude, it.longitude) }
                 ?: getNetworkLocation(context)
                 ?: LatLng(43.32,21.90)
         } catch (e: SecurityException) {
-            // Ako korisnik nije dao dozvolu, vrati fallback
             LatLng(43.32,21.90)
         }
-
     } catch (e: Exception) {
         LatLng(43.32,21.90)
     }

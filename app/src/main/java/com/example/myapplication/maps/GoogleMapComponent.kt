@@ -5,45 +5,30 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import androidx.annotation.RequiresPermission
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.myapplication.AuthViewModel
 import com.example.myapplication.models.Job
 import com.example.myapplication.models.Master
-import com.example.myapplication.models.MasterJobRepository
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.Circle
 import com.google.maps.android.compose.*
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
-import java.text.SimpleDateFormat
-import java.util.*
 
 
 @Composable
 fun GoogleMapComponent(
     modifier: Modifier = Modifier,
-    authViewModel: AuthViewModel? = null,
     onMapClick: (LatLng) -> Unit = {},
     masters: List<Master> = emptyList(),
     jobs: List<Job> = emptyList(),
-    selectedLocation: LatLng? = null // 👈 DODAJ OVO
+    selectedLocation: LatLng? = null,
+    authViewModel: AuthViewModel
 ) {
     val context = LocalContext.current
     val cameraPositionState = rememberCameraPositionState()
@@ -99,8 +84,9 @@ fun GoogleMapComponent(
             val jobLocation = LatLng(job.location.latitude, job.location.longitude)
             Marker(
                 state = MarkerState(position = jobLocation),
-                title = "Posao: ${job.title}",
-                snippet = "${job.profession} • ${job.urgency} • ${job.budget}",
+                title = "Posao za:  ${job.profession}",
+                snippet = "${job.description}  - "  +
+                        "${job.contactPhone}",
                 icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)
             )
         }
@@ -109,21 +95,20 @@ fun GoogleMapComponent(
 
 private suspend fun getCurrentUserLocationForCamera(context: Context): LatLng? {
     return try {
-        // 👇 EKSPLICITNO PROVERI DOZVOLE
+        //  EKSPLICITNO PROVERI DOZVOLE
         if (!hasLocationPermission(context)) {
             return LatLng(43.32,21.90) // Fallback lokacija
         }
 
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
-        // 👇 EKSPLICITNO HANDLE-UJ SecurityException
+        // SecurityException
         try {
             val location = fusedLocationClient.lastLocation.await()
             location?.let { LatLng(it.latitude, it.longitude) }
                 ?: getNetworkLocation(context)
                 ?: LatLng(43.32,21.90)
         } catch (e: SecurityException) {
-            // Ako korisnik nije dao dozvolu, vrati fallback
             LatLng(43.32,21.90)
         }
 
@@ -135,7 +120,7 @@ private suspend fun getCurrentUserLocationForCamera(context: Context): LatLng? {
 @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
 private fun getNetworkLocation(context: Context): LatLng? {
     return try {
-        // 👇 PROVERI DOZVOLE I OVDE
+        // PROVERI DOZVOLE I OVDE
         if (!hasLocationPermission(context)) {
             return null
         }

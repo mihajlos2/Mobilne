@@ -22,17 +22,15 @@ class MasterJobRepository {
     private val jobsCollection = db.collection("jobs")
     private val reviewsCollection = db.collection("reviews")
 
-    // 👇 MAJSTORI
     suspend fun getAllMasters(): List<Master> {
         return try {
             val masters = mastersCollection
                 .get()
                 .await()
                 .toObjects(Master::class.java)
-            Log.d("MasterJobRepository", "📋 Učitano ${masters.size} majstora")
             masters
         } catch (e: Exception) {
-            Log.e("MasterJobRepository", "❌ Greška pri dohvatanju majstora: ${e.message}")
+            Log.e("MasterJobRepository", " Greška pri pribavljanju majstora: ${e.message}")
             emptyList()
         }
     }
@@ -41,10 +39,9 @@ class MasterJobRepository {
             val docRef = mastersCollection.document()
             val masterWithId = master.copy(id = docRef.id)
             docRef.set(masterWithId).await()
-            Log.d("MasterJobRepository", "✅ Majstor dodat: ${master.name}")
             docRef.id
         } catch (e: Exception) {
-            Log.e("MasterJobRepository", "❌ Greška pri dodavanju majstora: ${e.message}")
+            Log.e("MasterJobRepository", " Greška pri dodavanju majstora: ${e.message}")
             ""
         }
     }
@@ -58,9 +55,8 @@ class MasterJobRepository {
 
                 )
                 .await()
-            Log.d("MasterJobRepository", "⭐ Rating ažuriran za majstora: $masterId")
         } catch (e: Exception) {
-            Log.e("MasterJobRepository", "❌ Greška pri ažuriranju ratinga: ${e.message}")
+            Log.e("MasterJobRepository", "Greška pri ažuriranju ratinga: ${e.message}")
         }
     }
     fun listenToMasters(onUpdate: (List<Master>) -> Unit) {
@@ -94,10 +90,9 @@ class MasterJobRepository {
                 .get()
                 .await()
                 .toObjects(Job::class.java)
-            Log.d("MasterJobRepository", "📋 Učitano ${jobs.size} poslova")
             jobs
         } catch (e: Exception) {
-            Log.e("MasterJobRepository", "❌ Greška pri dohvatanju poslova: ${e.message}")
+            Log.e("MasterJobRepository", "Greška pri dohvatanju poslova: ${e.message}")
             emptyList()
         }
     }
@@ -106,31 +101,10 @@ class MasterJobRepository {
             val docRef = jobsCollection.document()
             val jobWithId = job.copy(id = docRef.id)
             docRef.set(jobWithId).await()
-            Log.d("MasterJobRepository", "✅ Posao dodat: ${job.title}")
             docRef.id
         } catch (e: Exception) {
-            Log.e("MasterJobRepository", "❌ Greška pri dodavanju posla: ${e.message}")
+            Log.e("MasterJobRepository", "Greška pri dodavanju posla: ${e.message}")
             ""
-        }
-    }
-    suspend fun getReviewsForMaster(masterId: String): List<Review> {
-        return try {
-            reviewsCollection
-                .whereEqualTo("masterId", masterId)
-                .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .get()
-                .await()
-                .toObjects(Review::class.java)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-    private suspend fun updateMasterRatingAfterReview(masterId: String) {
-        val reviews = getReviewsForMaster(masterId)
-        if (reviews.isNotEmpty()) {
-            val averageRating = reviews.map { it.rating }.average()
-            val reviewCount = reviews.size
-            updateMasterRating(masterId, averageRating, reviewCount)
         }
     }
     suspend fun searchMastersByProfession(profession: String): List<Master> {
@@ -140,14 +114,10 @@ class MasterJobRepository {
             .whereEqualTo("available", true)
             .get()
             .await()
-
-        Log.d("MasterJobRepository", "📄 Firestore dokumenti: ${querySnapshot.documents.map { it.data }}")
-
         val masters = querySnapshot.toObjects(Master::class.java)
-        Log.d("MasterJobRepository", "🔍 Pronađeno ${masters.size} majstora za profesiju: $profession")
         masters
     } catch (e: Exception) {
-        Log.e("MasterJobRepository", "❌ Greška pri pretrazi po profesiji: ${e.message}")
+        Log.e("MasterJobRepository", "Greška pri pretrazi po profesiji: ${e.message}")
         emptyList()
     }
 }
@@ -158,16 +128,13 @@ class MasterJobRepository {
             .get()
             .await()
             .toObjects(Master::class.java)
-
         val nearby = allMasters.filter {
             val d = calculateDistance(centerLat, centerLng, it.location.latitude, it.location.longitude)
             d <= radiusInMeters
         }
-
-        Log.d("MasterJobRepository", "📍 Pronađeno ${nearby.size} majstora u radiusu od ${radiusInMeters}m")
         nearby
     } catch (e: Exception) {
-        Log.e("MasterJobRepository", "❌ Greška pri pretrazi po radiusu: ${e.message}")
+        Log.e("MasterJobRepository", "Greška pri pretrazi po radiusu: ${e.message}")
         emptyList()
     }
 }
@@ -178,16 +145,13 @@ class MasterJobRepository {
             .whereEqualTo("available", true)
             .get()
             .await()
-
         val filtered = querySnapshot.toObjects(Master::class.java).filter {
             val d = calculateDistance(centerLat, centerLng, it.location.latitude, it.location.longitude)
             d <= radiusInMeters
         }
-
-        Log.d("MasterJobRepository", "🎯 Pronađeno ${filtered.size} $profession majstora u radiusu od ${radiusInMeters}m")
         filtered
     } catch (e: Exception) {
-        Log.e("MasterJobRepository", "❌ Greška pri kombinovanoj pretrazi: ${e.message}")
+        Log.e("MasterJobRepository", "Greška pri kombinovanoj pretrazi: ${e.message}")
         emptyList()
     }
 }

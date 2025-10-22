@@ -1,12 +1,20 @@
 package com.example.myapplication.pages
 
+import android.graphics.Color.rgb
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -19,7 +27,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -43,6 +55,7 @@ fun SignupPage(modifier: Modifier = Modifier,navController: NavController,authVi
     var phoneNumber by remember {
         mutableStateOf("")
     }
+    var passwordVisible by remember { mutableStateOf(false) }
 
 
     val authState = authViewModel.authState.observeAsState()
@@ -64,11 +77,12 @@ fun SignupPage(modifier: Modifier = Modifier,navController: NavController,authVi
     }
 
     Column(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize()
+            .background(Color(rgb(137, 217, 156))),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Signup Page", fontSize = 32.sp)
+        Text(text = "Registacija", fontSize = 32.sp)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -78,7 +92,7 @@ fun SignupPage(modifier: Modifier = Modifier,navController: NavController,authVi
                 ime = it
             },
             label = {
-                Text(text = "Name")
+                Text(text = "Ime")
             }
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -89,7 +103,7 @@ fun SignupPage(modifier: Modifier = Modifier,navController: NavController,authVi
                 prezime = it
             },
             label = {
-                Text(text = "Surname")
+                Text(text = "Prezime")
             }
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -100,7 +114,7 @@ fun SignupPage(modifier: Modifier = Modifier,navController: NavController,authVi
                 phoneNumber = it
             },
             label = {
-                Text(text = "Phone number")
+                Text(text = "Broj Telefona")
             }
         )
 
@@ -119,20 +133,26 @@ fun SignupPage(modifier: Modifier = Modifier,navController: NavController,authVi
 
         OutlinedTextField(
             value = password,
-            onValueChange = {
-                password = it
-            },
-            label = {
-                Text(text = "Password")
+            onValueChange = { password = it },
+            label = { Text("Lozinka") },
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                val image = if (passwordVisible)
+                    Icons.Filled.Visibility
+                else Icons.Filled.VisibilityOff
+
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(imageVector = image, contentDescription = if (passwordVisible) "Sakrij lozinku" else "Prikaži lozinku")
+                }
             }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = {
             authViewModel.signup2(email, password, ime, prezime, phoneNumber)
-            //authViewModel.signup(email,password)
         }) {
-            Text(text = "Create account")
+            Text(text = "Napravi nalog")
         }
 
         Spacer(modifier = Modifier.height(4.dp))
@@ -141,7 +161,7 @@ fun SignupPage(modifier: Modifier = Modifier,navController: NavController,authVi
                 navController.navigate("login")
             }
         ) {
-            Text(text = "Already have an account, Login")
+            Text(text = "Već posedujem nalog, Prijava")
         }
     }
 }

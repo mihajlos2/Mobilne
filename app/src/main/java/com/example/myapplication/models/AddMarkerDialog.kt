@@ -33,9 +33,7 @@ fun AddMarkerDialog(
     onAddJob: (Map<String, String>) -> Unit
 ) {
     var selectedType by remember { mutableStateOf("master") }
-    var name by remember { mutableStateOf("") }
     var profession by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
     AlertDialog(
@@ -77,24 +75,11 @@ fun AddMarkerDialog(
 
                 // FORMUAR ZA MAJSTORA
                 if (selectedType == "master") {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Ime majstora") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = profession,
                         onValueChange = { profession = it },
                         label = { Text("Profesija") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = phone,
-                        onValueChange = { phone = it },
-                        label = { Text("Telefon") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -108,12 +93,6 @@ fun AddMarkerDialog(
 
                 // FORMUAR ZA POSAO
                 else {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Naslov posla") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = profession,
@@ -128,13 +107,6 @@ fun AddMarkerDialog(
                         label = { Text("Opis posla") },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = phone,
-                        onValueChange = { phone = it },
-                        label = { Text("Kontakt telefon") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
             }
         },
@@ -143,21 +115,17 @@ fun AddMarkerDialog(
                 onClick = {
                     if (selectedType == "master") {
                         onAddMaster(mapOf(
-                            "name" to name,
                             "profession" to profession,
-                            "phone" to phone,
                             "description" to description
                         ))
                     } else {
                         onAddJob(mapOf(
-                            "title" to name,
                             "profession" to profession,
-                            "description" to description,
-                            "phone" to phone
+                            "description" to description
                         ))
                     }
                 },
-                enabled = name.isNotBlank() && profession.isNotBlank()
+                enabled = description.isNotBlank() && profession.isNotBlank()
             ) {
                 Text("Dodaj")
             }
