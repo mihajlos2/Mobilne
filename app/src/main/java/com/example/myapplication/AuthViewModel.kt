@@ -89,6 +89,37 @@ class AuthViewModel: ViewModel() {
                 }
             }
     }
+
+    fun signup3(email: String, password: String, ime: String, prezime: String, phoneNumber: String, imageUrl: String?) {
+        auth.createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val user = auth.currentUser
+                    user?.let {
+                        val uid = it.uid
+                        val db = FirebaseFirestore.getInstance()
+
+                        val userMap = hashMapOf(
+                            "ime" to ime,
+                            "prezime" to prezime,
+                            "phoneNumber" to phoneNumber,
+                            "email" to email,
+                            "imageUrl" to (imageUrl ?: "")
+                        )
+
+                        db.collection("korisnici").document(uid).set(userMap)
+                            .addOnSuccessListener {
+                                _authState.postValue(AuthState.Authenticated)
+                            }
+                            .addOnFailureListener { e ->
+                                _authState.postValue(AuthState.Error(e.message ?: "Firestore error"))
+                            }
+                    }
+                } else {
+                    _authState.postValue(AuthState.Error(task.exception?.message ?: "Auth error"))
+                }
+            }
+    }
     fun signout() {
         auth.signOut()
         _authState.value = AuthState.Unauthenticated
