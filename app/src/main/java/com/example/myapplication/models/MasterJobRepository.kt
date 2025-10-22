@@ -107,6 +107,21 @@ class MasterJobRepository {
             ""
         }
     }
+    private fun <T> filterByDate(list: List<T>, startDate: Date?, endDate: Date?): List<T> {
+        return list.filter { item ->
+            val createdAt = when(item) {
+                is Master -> item.createdAt
+                is Job -> item.createdAt
+                else -> null
+            }
+            if (createdAt == null) true
+            else {
+                (startDate == null || !createdAt.before(startDate)) &&
+                        (endDate == null || !createdAt.after(endDate))
+            }
+        }
+    }
+
     suspend fun searchMastersByProfession(profession: String): List<Master> {
     return try {
         val querySnapshot = mastersCollection

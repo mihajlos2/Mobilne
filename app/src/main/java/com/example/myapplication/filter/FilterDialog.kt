@@ -1,5 +1,6 @@
 package com.example.myapplication.filter
 
+import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -9,8 +10,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.maps.model.LatLng
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun FilterDialog(
@@ -23,6 +27,12 @@ fun FilterDialog(
     var selectedProfession by remember { mutableStateOf("") }
     var radius by remember { mutableStateOf(2000) }
     var searchType by remember { mutableStateOf("profession") }
+
+    var startDate by remember { mutableStateOf<Date?>(null) }
+    var endDate by remember { mutableStateOf<Date?>(null) }
+
+    val context = LocalContext.current
+    val dateFormat = remember { SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -122,6 +132,62 @@ fun FilterDialog(
                         )
                     }
                 }
+
+                // DATUM FILTER
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Datum kreiranja:", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = startDate?.let { dateFormat.format(it) } ?: "",
+                        onValueChange = {},
+                        label = { Text("Od") },
+                        readOnly = true,
+                        modifier = Modifier.weight(1f),
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                val calendar = Calendar.getInstance()
+                                DatePickerDialog(
+                                    context,
+                                    { _, year, month, dayOfMonth ->
+                                        calendar.set(year, month, dayOfMonth)
+                                        startDate = calendar.time
+                                    },
+                                    calendar.get(Calendar.YEAR),
+                                    calendar.get(Calendar.MONTH),
+                                    calendar.get(Calendar.DAY_OF_MONTH)
+                                ).show()
+                            }) {
+                                Icon(Icons.Default.Search, contentDescription = "Izaberi datum")
+                            }
+                        }
+                    )
+
+                    OutlinedTextField(
+                        value = endDate?.let { dateFormat.format(it) } ?: "",
+                        onValueChange = {},
+                        label = { Text("Do") },
+                        readOnly = true,
+                        modifier = Modifier.weight(1f),
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                val calendar = Calendar.getInstance()
+                                DatePickerDialog(
+                                    context,
+                                    { _, year, month, dayOfMonth ->
+                                        calendar.set(year, month, dayOfMonth)
+                                        endDate = calendar.time
+                                    },
+                                    calendar.get(Calendar.YEAR),
+                                    calendar.get(Calendar.MONTH),
+                                    calendar.get(Calendar.DAY_OF_MONTH)
+                                ).show()
+                            }) {
+                                Icon(Icons.Default.Search, contentDescription = "Izaberi datum")
+                            }
+                        }
+                    )
+                }
             }
         },
         confirmButton = {
@@ -132,7 +198,9 @@ fun FilterDialog(
                         profession = selectedProfession.ifEmpty { null },
                         radius = if (searchType == "radius" || searchType == "both") radius else null,
                         searchType = searchType,
-                        userLocation = userLocation
+                        userLocation = userLocation,
+                        startDate = startDate,
+                        endDate = endDate
                     )
                     onApplyFilters(filterData)
                 },
@@ -146,7 +214,7 @@ fun FilterDialog(
             Row {
                 TextButton(onClick = onDismiss) { Text("Otkaži") }
                 Spacer(modifier = Modifier.width(8.dp))
-                IconButton(onClick = onResetFilters) { // crveni X
+                IconButton(onClick = onResetFilters) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Obriši filtere",
@@ -163,5 +231,7 @@ data class FilterData(
     val profession: String? = null,
     val radius: Int? = null,
     val searchType: String = "profession",
-    val userLocation: LatLng? = null
+    val userLocation: LatLng? = null,
+    val startDate: Date? = null,
+    val endDate: Date? = null
 )

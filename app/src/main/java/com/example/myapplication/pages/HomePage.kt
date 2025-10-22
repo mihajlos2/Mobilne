@@ -8,11 +8,7 @@ import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.FilterAlt
-import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -27,15 +23,16 @@ import com.example.myapplication.AuthViewModel
 import com.example.myapplication.filter.FilterDialog
 import com.example.myapplication.filter.MasterRankingDialog
 import com.example.myapplication.models.AddMarkerDialog
-import com.example.myapplication.maps.GoogleMapComponent
 import com.example.myapplication.models.Master
 import com.example.myapplication.models.Job
 import com.example.myapplication.models.MasterJobRepository
+import com.example.myapplication.maps.GoogleMapComponent
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.firestore.GeoPoint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.*
 
 @Composable
 fun HomePage(
@@ -43,14 +40,13 @@ fun HomePage(
     navController: NavController,
     authViewModel: AuthViewModel
 ) {
-
     var showAddMarkerDialog by remember { mutableStateOf(false) }
     var showFilters by remember { mutableStateOf(false) }
     var selectedLocation by remember { mutableStateOf<LatLng?>(null) }
     var userLocation by remember { mutableStateOf<LatLng?>(null) }
-
     var showMarkerTable by remember { mutableStateOf(false) }
     var showMasterRankingDialog by remember { mutableStateOf(false) }
+
     val masterJobRepository = remember { MasterJobRepository() }
     val currentUser by authViewModel.currentUser.observeAsState()
     val userData by authViewModel.userData.observeAsState()
@@ -64,22 +60,15 @@ fun HomePage(
         authViewModel.loadCurrentUserData()
         userLocation = getCurrentUserLocation(context)
 
-        masterJobRepository.listenToMasters { updatedMasters ->
-            masters = updatedMasters
-        }
-
-        masterJobRepository.listenToJobs { updatedJobs ->
-            jobs = updatedJobs
-        }
+        masterJobRepository.listenToMasters { updatedMasters -> masters = updatedMasters }
+        masterJobRepository.listenToJobs { updatedJobs -> jobs = updatedJobs }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         GoogleMapComponent(
             modifier = Modifier.fillMaxSize(),
             authViewModel = authViewModel,
-            onMapClick = { latLng ->
-                selectedLocation = latLng
-            },
+            onMapClick = { latLng -> selectedLocation = latLng },
             masters = masters,
             jobs = jobs,
             selectedLocation = selectedLocation
@@ -103,9 +92,7 @@ fun HomePage(
                 modifier = Modifier.size(56.dp),
                 containerColor = if (selectedLocation != null) MaterialTheme.colorScheme.primary else Color.Gray,
                 contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Place, contentDescription = "Lista markera")
-            }
+            ) { Icon(Icons.Default.Place, contentDescription = "Lista markera") }
 
             FloatingActionButton(
                 onClick = { showMasterRankingDialog = true },
@@ -133,7 +120,7 @@ fun HomePage(
         }
     }
 
-
+    // --- Dialogi ---
     if (showAddMarkerDialog && selectedLocation != null) {
         AddMarkerDialog(
             onDismiss = { showAddMarkerDialog = false },
@@ -171,7 +158,6 @@ fun HomePage(
                         address = jobData["address"] ?: "",
                         status = "Open"
                     )
-                    Log.e("MasterJobRepository", "Greška pri dodavanju posla: ${userData?.get("phoneNumber")}")
                     masterJobRepository.addJob(newJob)
                     selectedLocation = null
                     showAddMarkerDialog = false
@@ -204,55 +190,16 @@ fun HomePage(
                 coroutineScope.launch {
                     when (filterData.targetType) {
                         "masters" -> {
-                            masters = when (filterData.searchType) {
-                                "profession" -> filterData.profession?.let {
-                                    masterJobRepository.searchMastersByProfession(it)
-                                } ?: masterJobRepository.getAllMasters()
-                                "radius" -> filterData.userLocation?.let {
-                                    masterJobRepository.searchMastersByRadius(
-                                        it.latitude,
-                                        it.longitude,
-                                        filterData.radius?.toDouble() ?: 2000.0
-                                    )
-                                } ?: masterJobRepository.getAllMasters()
-                                "both" -> if (filterData.profession != null && filterData.userLocation != null) {
-                                    masterJobRepository.searchMastersByProfessionAndRadius(
-                                        filterData.profession,
-                                        filterData.userLocation.latitude,
-                                        filterData.userLocation.longitude,
-                                        filterData.radius?.toDouble() ?: 2000.0
-                                    )
-                                } else masterJobRepository.getAllMasters()
-                                else -> masterJobRepository.getAllMasters()
-                            }
+                            val filtered = applyMasterFilters(masterJobRepository, filterData)
+                            masters = filtered
                         }
                         "jobs" -> {
-                            jobs = when (filterData.searchType) {
-                                "profession" -> filterData.profession?.let {
-                                    masterJobRepository.searchJobsByProfession(it)
-                                } ?: masterJobRepository.getAllJobs()
-                                "radius" -> filterData.userLocation?.let {
-                                    masterJobRepository.searchJobsByRadius(
-                                        it.latitude,
-                                        it.longitude,
-                                        filterData.radius?.toDouble() ?: 2000.0
-                                    )
-                                } ?: masterJobRepository.getAllJobs()
-                                "both" -> if (filterData.profession != null && filterData.userLocation != null) {
-                                    masterJobRepository.searchJobsByProfessionAndRadius(
-                                        filterData.profession,
-                                        filterData.userLocation.latitude,
-                                        filterData.userLocation.longitude,
-                                        filterData.radius?.toDouble() ?: 2000.0
-                                    )
-                                } else masterJobRepository.getAllJobs()
-                                else -> masterJobRepository.getAllJobs()
-                            }
+                            val filtered = applyJobFilters(masterJobRepository, filterData)
+                            jobs = filtered
                         }
                     }
                     showFilters = false
                 }
-
             },
             onResetFilters = {
                 coroutineScope.launch {
@@ -260,57 +207,98 @@ fun HomePage(
                     jobs = masterJobRepository.getAllJobs()
                     showFilters = false
                 }
-                },
+            },
             userLocation = userLocation
         )
     }
-
 }
-private suspend fun getCurrentUserLocation(context: android.content.Context): LatLng? {
-    return try {
-        // EKSPLICITNO PROVERI DOZVOLE
-        if (!hasLocationPermission(context)) {
-            return LatLng(43.32,21.90) // Fallback lokacija
+
+// --- Funkcije za filter po datumu i ostalo ---
+private fun <T> filterByDate(list: List<T>, startDate: Date?, endDate: Date?): List<T> {
+    return list.filter { item ->
+        val createdAt = when (item) {
+            is Master -> item.createdAt
+            is Job -> item.createdAt
+            else -> null
         }
+        if (createdAt == null) true
+        else (startDate == null || !createdAt.before(startDate)) &&
+                (endDate == null || !createdAt.after(endDate))
+    }
+}
+
+private suspend fun applyMasterFilters(
+    repository: MasterJobRepository,
+    filterData: com.example.myapplication.filter.FilterData
+): List<Master> {
+    val baseList = when (filterData.searchType) {
+        "profession" -> filterData.profession?.let { repository.searchMastersByProfession(it) }
+            ?: repository.getAllMasters()
+        "radius" -> filterData.userLocation?.let {
+            repository.searchMastersByRadius(it.latitude, it.longitude, filterData.radius?.toDouble() ?: 2000.0)
+        } ?: repository.getAllMasters()
+        "both" -> if (filterData.profession != null && filterData.userLocation != null) {
+            repository.searchMastersByProfessionAndRadius(
+                filterData.profession,
+                filterData.userLocation.latitude,
+                filterData.userLocation.longitude,
+                filterData.radius?.toDouble() ?: 2000.0
+            )
+        } else repository.getAllMasters()
+        else -> repository.getAllMasters()
+    }
+    return filterByDate(baseList, filterData.startDate, filterData.endDate)
+}
+
+private suspend fun applyJobFilters(
+    repository: MasterJobRepository,
+    filterData: com.example.myapplication.filter.FilterData
+): List<Job> {
+    val baseList = when (filterData.searchType) {
+        "profession" -> filterData.profession?.let { repository.searchJobsByProfession(it) }
+            ?: repository.getAllJobs()
+        "radius" -> filterData.userLocation?.let {
+            repository.searchJobsByRadius(it.latitude, it.longitude, filterData.radius?.toDouble() ?: 2000.0)
+        } ?: repository.getAllJobs()
+        "both" -> if (filterData.profession != null && filterData.userLocation != null) {
+            repository.searchJobsByProfessionAndRadius(
+                filterData.profession,
+                filterData.userLocation.latitude,
+                filterData.userLocation.longitude,
+                filterData.radius?.toDouble() ?: 2000.0
+            )
+        } else repository.getAllJobs()
+        else -> repository.getAllJobs()
+    }
+    return filterByDate(baseList, filterData.startDate, filterData.endDate)
+}
+
+// --- Lokacija korisnika ---
+private suspend fun getCurrentUserLocation(context: Context): LatLng? {
+    return try {
+        if (!hasLocationPermission(context)) return LatLng(43.32, 21.90)
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-        //  SecurityException
         try {
             val location = fusedLocationClient.lastLocation.await()
-            location?.let { LatLng(it.latitude, it.longitude) }
-                ?: getNetworkLocation(context)
-                ?: LatLng(43.32,21.90)
+            location?.let { LatLng(it.latitude, it.longitude) } ?: getNetworkLocation(context) ?: LatLng(43.32, 21.90)
         } catch (e: SecurityException) {
-            LatLng(43.32,21.90)
+            LatLng(43.32, 21.90)
         }
     } catch (e: Exception) {
-        LatLng(43.32,21.90)
+        LatLng(43.32, 21.90)
     }
 }
 
 @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
 private fun getNetworkLocation(context: Context): LatLng? {
     return try {
-        // 👇 PROVERI DOZVOLE I OVDE
-        if (!hasLocationPermission(context)) {
-            return null
-        }
-
+        if (!hasLocationPermission(context)) return null
         val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val networkProvider = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-        networkProvider?.let { LatLng(it.latitude, it.longitude) }
-    } catch (e: SecurityException) {
-        null
-    } catch (e: Exception) {
-        null
-    }
+        locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)?.let { LatLng(it.latitude, it.longitude) }
+    } catch (e: SecurityException) { null } catch (e: Exception) { null }
 }
 
 private fun hasLocationPermission(context: Context): Boolean {
-    return ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.ACCESS_FINE_LOCATION
-    ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.ACCESS_COARSE_LOCATION
-    ) == PackageManager.PERMISSION_GRANTED
+    return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 }
