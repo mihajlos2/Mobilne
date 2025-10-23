@@ -22,16 +22,19 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
+import com.example.myapplication.models.MasterJobRepository
 import com.example.myapplication.maps.LocationRepository
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 class MainActivity : ComponentActivity() {
 
+    private val repository = MasterJobRepository()
     private val authViewModel: AuthViewModel by viewModels()
     private val locationRepository = LocationRepository()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -54,12 +57,27 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     override fun onStop() {
         super.onStop()
-        // Kada se app minimizira, pošalji lokaciju i prikaži notifikaciju
-        lifecycleScope.launch {
-            sendCurrentUserLocation()
-            showAppMinimizedNotification()
+        val currentUser = authViewModel.auth.currentUser
+        if (currentUser != null && hasLocationPermission()) {
+            lifecycleScope.launch {
+                // Pošalji trenutnu lokaciju
+                sendCurrentUserLocation()
+
+                while (true) {
+                    val location = getLastKnownLocation() ?: LatLng(43.32, 21.90) // default lokacija
+                    val nearbyMasters = repository.getMastersNearLocation(location.latitude, location.longitude)
+                    val nearbyJobs = repository.getJobsNearLocation(location.latitude, location.longitude)
+                    val totalMarkers = nearbyMasters.size + nearbyJobs.size ?: 0
+
+                    showAppMinimizedNotification(totalMarkers)
+
+
+                    delay(10 * 60 * 1000) // svaka 5 minuta
+                }
+            }
         }
     }
 
@@ -67,38 +85,38 @@ class MainActivity : ComponentActivity() {
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private suspend fun sendCurrentUserLocation() {
         val currentUser = authViewModel.auth.currentUser ?: return
-        if (!hasLocationPermission()) return
-
         val location = try {
             fusedLocationClient.lastLocation.await()
-        } catch (e: Exception) {
-            null
-        }
+        } catch (e: Exception) { null }
 
         location?.let {
-            val latLng = LatLng(it.latitude, it.longitude)
-            locationRepository.sendUserLocation(currentUser.uid, latLng)
+            locationRepository.sendUserLocation(
+                currentUser.uid,
+                LatLng(it.latitude, it.longitude)
+            )
+        }
+    }
+
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
+    private suspend fun getLastKnownLocation(): LatLng? {
+        return try {
+            fusedLocationClient.lastLocation.await()?.let { LatLng(it.latitude, it.longitude) }
+        } catch (e: Exception) {
+            null
         }
     }
 
     private fun hasLocationPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
     }
 
     // --- NOTIFIKACIJA ---
-    private fun showAppMinimizedNotification() {
+    private fun showAppMinimizedNotification(markerCount: Int) {
         val channelId = "app_minimized_channel"
         val notificationId = 1001
-        val notificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Kreiraj kanal za Android 8+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
@@ -109,21 +127,19 @@ class MainActivity : ComponentActivity() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        // Intent za povratak u aplikaciju
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Notifikacija
         val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // zameni svojom ikonocom
-            .setContentTitle("Aplikacija je minimizovana")
-            .setContentText("Vaša lokacija je sačuvana u bazi.")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle("Novi marker u blizini!")
+            .setContentText("Broj markera u krugu od 2 km: $markerCount")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
 
         notificationManager.notify(notificationId, notification)

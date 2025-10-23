@@ -23,7 +23,7 @@ class LocationRepository {
     private val db = FirebaseFirestore.getInstance()
     private val userLocationsCollection = db.collection("user_locations")
 
-    // Šalji trenutnu lokaciju korisnika na server
+    //log u bazu
     suspend fun sendUserLocation(userId: String, location: LatLng) {
         try {
             val userLocation = hashMapOf(
@@ -31,7 +31,6 @@ class LocationRepository {
                 "location" to GeoPoint(location.latitude, location.longitude),
                 "timestamp" to Date()
             )
-
             userLocationsCollection
                 .document(userId)
                 .set(userLocation, SetOptions.merge())

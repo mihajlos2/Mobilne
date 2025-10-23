@@ -56,9 +56,11 @@ android {
 }
 
 dependencies {
-    implementation("io.coil-kt:coil-compose:2.7.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation(libs.androidx.work.runtime.ktx.v291)
+    implementation(libs.firebase.firestore.ktx.v2444)
+    implementation(libs.coil.compose)
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.navigation.compose.v275)
     implementation(libs.firebase.messaging.ktx)
     implementation(libs.androidx.work.runtime.ktx)
@@ -105,6 +107,7 @@ dependencies {
     implementation(libs.androidx.compose.runtime.livedata)
     implementation(libs.firebase.crashlytics.buildtools)
     implementation(libs.androidx.compose.ui.text)
+    implementation(libs.ui)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

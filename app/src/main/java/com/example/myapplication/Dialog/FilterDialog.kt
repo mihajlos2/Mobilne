@@ -1,4 +1,4 @@
-package com.example.myapplication.filter
+package com.example.myapplication.Dialog
 
 import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
@@ -126,7 +126,7 @@ fun FilterDialog(
                     if (userLocation == null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "⚠️ Nema dostupne lokacije za radius pretragu",
+                            "Nema dostupne lokacije za radius pretragu",
                             color = Color.Red,
                             style = MaterialTheme.typography.labelSmall
                         )

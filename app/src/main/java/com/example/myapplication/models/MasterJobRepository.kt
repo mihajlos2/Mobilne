@@ -20,8 +20,6 @@ class MasterJobRepository {
     private val db = FirebaseFirestore.getInstance()
     private val mastersCollection = db.collection("masters")
     private val jobsCollection = db.collection("jobs")
-    private val reviewsCollection = db.collection("reviews")
-
     suspend fun getAllMasters(): List<Master> {
         return try {
             val masters = mastersCollection
@@ -107,21 +105,123 @@ class MasterJobRepository {
             ""
         }
     }
-    private fun <T> filterByDate(list: List<T>, startDate: Date?, endDate: Date?): List<T> {
+
+
+    suspend fun hasUserRatedMaster(masterId: String, userId: String): Boolean {
+        val reviewDocId = "${masterId}_$userId"
+        val doc = FirebaseFirestore.getInstance()
+            .collection("reviews")
+            .document(reviewDocId)
+            .get()
+            .await()
+        return doc.exists()
+    }
+
+    suspend fun saveUserRating(masterId: String, userId: String, rating: Int) {
+        val reviewDocId = "${masterId}_$userId"
+        val data = hashMapOf(
+            "masterId" to masterId,
+            "userId" to userId,
+            "rating" to rating,
+            "timestamp" to com.google.firebase.Timestamp.now()
+        )
+        FirebaseFirestore.getInstance()
+            .collection("reviews")
+            .document(reviewDocId)
+            .set(data)
+            .await()
+    }
+    fun getCurrentUserId(): String {
+        return com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "anonymous"
+    }
+
+    suspend fun getMastersNearLocation(lat: Double, lng: Double, radiusMeters: Double = 2000.0): List<Master> {
+        return try {
+            val allMasters = mastersCollection.get().await().toObjects(Master::class.java)
+            allMasters.filter {
+                val d = calculateDistance(lat, lng, it.location.latitude, it.location.longitude)
+                d <= radiusMeters
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    suspend fun getJobsNearLocation(lat: Double, lng: Double, radiusMeters: Double = 2000.0): List<Job> {
+        return try {
+            val allJobs = jobsCollection.get().await().toObjects(Job::class.java)
+            allJobs.filter {
+                val d = calculateDistance(lat, lng, it.location.latitude, it.location.longitude)
+                d <= radiusMeters
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    fun <T> filterByDate(list: List<T>, startDate: Date?, endDate: Date?): List<T> {
         return list.filter { item ->
-            val createdAt = when(item) {
+            val createdAt = when (item) {
                 is Master -> item.createdAt
                 is Job -> item.createdAt
                 else -> null
             }
             if (createdAt == null) true
-            else {
-                (startDate == null || !createdAt.before(startDate)) &&
-                        (endDate == null || !createdAt.after(endDate))
-            }
+            else (startDate == null || !createdAt.before(startDate)) &&
+                    (endDate == null || !createdAt.after(endDate))
         }
     }
+    suspend fun applyMasterFilters(
+        repository: MasterJobRepository,
+        filterData: com.example.myapplication.Dialog.FilterData
+    ): List<Master> {
+        val baseList = when (filterData.searchType) {
+            "profession" -> filterData.profession?.let { repository.searchMastersByProfession(it) }
+                ?: repository.getAllMasters()
+            "radius" -> filterData.userLocation?.let {
+                repository.searchMastersByRadius(it.latitude, it.longitude, filterData.radius?.toDouble() ?: 2000.0)
+            } ?: repository.getAllMasters()
+            "both" -> if (filterData.profession != null && filterData.userLocation != null) {
+                repository.searchMastersByProfessionAndRadius(
+                    filterData.profession,
+                    filterData.userLocation.latitude,
+                    filterData.userLocation.longitude,
+                    filterData.radius?.toDouble() ?: 2000.0
+                )
+            } else repository.getAllMasters()
+            else -> repository.getAllMasters()
+        }
+        return filterByDate(baseList, filterData.startDate, filterData.endDate)
+    }
 
+    suspend fun applyJobFilters(
+        repository: MasterJobRepository,
+        filterData: com.example.myapplication.Dialog.FilterData
+    ): List<Job> {
+        val baseList = when (filterData.searchType) {
+            "profession" -> filterData.profession?.let { repository.searchJobsByProfession(it) }
+                ?: repository.getAllJobs()
+            "radius" -> filterData.userLocation?.let {
+                repository.searchJobsByRadius(it.latitude, it.longitude, filterData.radius?.toDouble() ?: 2000.0)
+            } ?: repository.getAllJobs()
+            "both" -> if (filterData.profession != null && filterData.userLocation != null) {
+                repository.searchJobsByProfessionAndRadius(
+                    filterData.profession,
+                    filterData.userLocation.latitude,
+                    filterData.userLocation.longitude,
+                    filterData.radius?.toDouble() ?: 2000.0
+                )
+            } else repository.getAllJobs()
+            else -> repository.getAllJobs()
+        }
+        return filterByDate(baseList, filterData.startDate, filterData.endDate)
+    }
+
+    fun deleteDocument(collection: String, id: String, onComplete: (Boolean) -> Unit) {
+        val db = FirebaseFirestore.getInstance()
+        db.collection(collection).document(id)
+            .delete()
+            .addOnSuccessListener { onComplete(true) }
+            .addOnFailureListener { onComplete(false) }
+    }
     suspend fun searchMastersByProfession(profession: String): List<Master> {
     return try {
         val querySnapshot = mastersCollection

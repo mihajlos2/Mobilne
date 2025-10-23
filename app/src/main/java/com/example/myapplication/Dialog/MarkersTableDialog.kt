@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -26,7 +27,7 @@ fun MarkerTableDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("📍 Lista svih markera")
+                Text("Lista svih markera")
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Zatvori")
                 }
@@ -46,7 +47,7 @@ fun MarkerTableDialog(
                             MarkerRow(
                                 title = master.name ?: "Nepoznato ime",
                                 subtitle = "Prof: ${master.profession ?: "Nepoznato"}",
-                                coords = "(${master.location.latitude}, ${master.location.longitude})"
+                                coords = "(${master.phone})"
                             )
                         }
                     }
@@ -65,9 +66,9 @@ fun MarkerTableDialog(
                     ) {
                         items(jobs) { job ->
                             MarkerRow(
-                                title = job.title ?: "Bez naslova",
+                                title = job.createdByEmail?.substringBefore("@") ?: "Bez naslova",
                                 subtitle = "Profesija: ${job.profession ?: "Nepoznato"}",
-                                coords = "(${job.location.latitude}, ${job.location.longitude})"
+                                coords = "(${job.contactPhone})"
                             )
                         }
                     }
@@ -84,7 +85,7 @@ private fun MarkerRow(title: String, subtitle: String, coords: String) {
         .padding(vertical = 4.dp)) {
         Text(title, style = MaterialTheme.typography.bodyLarge)
         Text(subtitle, style = MaterialTheme.typography.bodySmall)
-        Text(coords, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+        Text(coords, style = MaterialTheme.typography.bodySmall)
         Divider(modifier = Modifier.padding(top = 4.dp))
     }
 }

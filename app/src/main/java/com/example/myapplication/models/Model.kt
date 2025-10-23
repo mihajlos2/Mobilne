@@ -39,8 +39,9 @@ data class Job(
     val contactPhone: String = "",
     val address: String = "",
     val estimatedDuration: String = "",
-    val materialsProvided: Boolean = false
-)
+    val materialsProvided: Boolean = false,
+    val userId: String = ""
+    )
 
 data class Review(
     val id: String = "",
@@ -51,4 +52,5 @@ data class Review(
     val comment: String = "",
     val createdAt: Date = Date(),
     val jobId: String = ""
+
 )

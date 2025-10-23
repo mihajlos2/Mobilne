@@ -2,9 +2,11 @@
 activityComposeVersion = "1.8.0"
 agp = "8.13.0"
 cloudinaryAndroid = "1.30.0"
+coilCompose = "2.7.0"
 composeBomVersion = "2023.03.00"
 coreKtxVersion = "1.12.0"
 firebaseBom = "32.7.0"
+firebaseFirestoreKtxVersion = "24.4.4"
 firebaseMessagingKtx = "23.4.0"
 kotlin = "2.0.21"
 coreKtx = "1.17.0"
@@ -26,6 +28,7 @@ mapsCompose = "2.11.4"
 materialIconsExtended = "1.5.4"
 navigationCompose = "2.9.5"
 navigationComposeVersion = "2.7.5"
+okhttp = "4.12.0"
 playServicesLocation = "21.0.1"
 playServicesMaps = "19.2.0"
 playServicesMapsVersion = "18.2.0"
@@ -33,6 +36,8 @@ runtimeLivedata = "1.9.3"
 firebaseCrashlyticsBuildtools = "3.0.6"
 workRuntimeKtx = "2.9.0"
 uiText = "1.9.3"
+ui = "1.9.3"
+workRuntimeKtxVersion = "2.9.1"
 
 [libraries]
 androidx-activity-compose-v180 = { module = "androidx.activity:activity-compose", version.ref = "activityComposeVersion" }
@@ -49,10 +54,13 @@ androidx-ui = { module = "androidx.compose.ui:ui" }
 androidx-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 androidx-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
+androidx-work-runtime-ktx-v291 = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtxVersion" }
 cloudinary-android = { module = "com.cloudinary:cloudinary-android", version.ref = "cloudinaryAndroid" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
+firebase-firestore-ktx-v2444 = { module = "com.google.firebase:firebase-firestore-ktx", version.ref = "firebaseFirestoreKtxVersion" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 firebase-messaging-ktx = { module = "com.google.firebase:firebase-messaging-ktx", version.ref = "firebaseMessagingKtx" }
 google-firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
@@ -82,10 +90,12 @@ androidx-compose-runtime-livedata = { group = "androidx.compose.runtime", name =
 firebase-crashlytics-buildtools = { group = "com.google.firebase", name = "firebase-crashlytics-buildtools", version.ref = "firebaseCrashlyticsBuildtools" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroid" }
 maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = "mapsCompose" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
 play-services-maps-v1820 = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMapsVersion" }
 androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
+ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

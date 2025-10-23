@@ -1,5 +1,6 @@
 package com.example.myapplication.pages
 
+import android.R.color.white
 import android.graphics.Color.rgb
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -67,8 +68,7 @@ fun LoginPage(modifier: Modifier = Modifier,navController: NavController,authVie
     }
 
     Column(
-        modifier = modifier.fillMaxSize()
-            .background(Color(rgb(137, 217, 156))),
+        modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

@@ -77,8 +77,7 @@ fun SignupPage(
 
     Column(
         modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFF89D99C)),
+            .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

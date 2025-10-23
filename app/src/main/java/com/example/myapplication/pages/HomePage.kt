@@ -4,9 +4,12 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
-import android.util.Log
 import androidx.annotation.RequiresPermission
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -14,15 +17,19 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
 import com.example.myapplication.AuthViewModel
-import com.example.myapplication.filter.FilterDialog
-import com.example.myapplication.filter.MasterRankingDialog
-import com.example.myapplication.models.AddMarkerDialog
+import com.example.myapplication.Dialog.FilterDialog
+import com.example.myapplication.Dialog.MasterRankingDialog
+import com.example.myapplication.Dialog.AddMarkerDialog
+import com.example.myapplication.R
 import com.example.myapplication.models.Master
 import com.example.myapplication.models.Job
 import com.example.myapplication.models.MasterJobRepository
@@ -46,6 +53,7 @@ fun HomePage(
     var userLocation by remember { mutableStateOf<LatLng?>(null) }
     var showMarkerTable by remember { mutableStateOf(false) }
     var showMasterRankingDialog by remember { mutableStateOf(false) }
+    var showUserInfo by remember { mutableStateOf(false) }
 
     val masterJobRepository = remember { MasterJobRepository() }
     val currentUser by authViewModel.currentUser.observeAsState()
@@ -59,7 +67,6 @@ fun HomePage(
     LaunchedEffect(Unit) {
         authViewModel.loadCurrentUserData()
         userLocation = getCurrentUserLocation(context)
-
         masterJobRepository.listenToMasters { updatedMasters -> masters = updatedMasters }
         masterJobRepository.listenToJobs { updatedJobs -> jobs = updatedJobs }
     }
@@ -71,7 +78,7 @@ fun HomePage(
             onMapClick = { latLng -> selectedLocation = latLng },
             masters = masters,
             jobs = jobs,
-            selectedLocation = selectedLocation
+            selectedLocation = selectedLocation,
         )
 
         Column(
@@ -80,6 +87,18 @@ fun HomePage(
                 .padding(start = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Image(
+                painter = rememberAsyncImagePainter(
+                    userData?.get("imageUrl") as? String ?: R.drawable.ic_launcher_foreground
+                ),
+                contentDescription = "Profilna slika",
+                modifier = Modifier
+                    .size(58.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, Color.Black, CircleShape)
+                    .clickable { showUserInfo = true },
+                contentScale = ContentScale.Crop
+            )
             FloatingActionButton(
                 onClick = { if (selectedLocation != null) showAddMarkerDialog = true },
                 modifier = Modifier.size(56.dp),
@@ -117,10 +136,42 @@ fun HomePage(
                 containerColor = MaterialTheme.colorScheme.error,
                 contentColor = Color.White
             ) { Icon(Icons.Default.Logout, "Odjavi se") }
+
+
         }
     }
 
-    // --- Dialogi ---
+    if (showUserInfo) {
+        AlertDialog(
+            onDismissRequest = { showUserInfo = false },
+            title = { Text("Informacije o korisniku") },
+            text = {
+                Column {
+                    // Profilna slika u dijalogu
+                    Image(
+                        painter = rememberAsyncImagePainter(userData?.get("imageUrl") as? String),
+                        contentDescription = "Profilna slika",
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .align(Alignment.CenterHorizontally),
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Ime: ${userData?.get("ime") as? String ?: ""}")
+                    Text("Email: ${userData?.get("prezime") as? String ?: ""}")
+                    Text("Telefon: ${userData?.get("email") as? String ?: ""}")
+                    Text("Telefon: ${userData?.get("phoneNumber") as? String ?: ""}")
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showUserInfo = false }) {
+                    Text("Zatvori")
+                }
+            }
+        )
+    }
+
     if (showAddMarkerDialog && selectedLocation != null) {
         AddMarkerDialog(
             onDismiss = { showAddMarkerDialog = false },
@@ -176,10 +227,8 @@ fun HomePage(
 
     if (showMasterRankingDialog) {
         MasterRankingDialog(
-            masters = masters,
             masterJobRepository = masterJobRepository,
-            onDismiss = { showMasterRankingDialog = false },
-            onUpdateMasters = { updatedMasters -> masters = updatedMasters }
+            onDismiss = { showMasterRankingDialog = false }
         )
     }
 
@@ -190,11 +239,11 @@ fun HomePage(
                 coroutineScope.launch {
                     when (filterData.targetType) {
                         "masters" -> {
-                            val filtered = applyMasterFilters(masterJobRepository, filterData)
+                            val filtered = masterJobRepository.applyMasterFilters(masterJobRepository, filterData)
                             masters = filtered
                         }
                         "jobs" -> {
-                            val filtered = applyJobFilters(masterJobRepository, filterData)
+                            val filtered = masterJobRepository.applyJobFilters(masterJobRepository, filterData)
                             jobs = filtered
                         }
                     }
@@ -212,68 +261,6 @@ fun HomePage(
         )
     }
 }
-
-// --- Funkcije za filter po datumu i ostalo ---
-private fun <T> filterByDate(list: List<T>, startDate: Date?, endDate: Date?): List<T> {
-    return list.filter { item ->
-        val createdAt = when (item) {
-            is Master -> item.createdAt
-            is Job -> item.createdAt
-            else -> null
-        }
-        if (createdAt == null) true
-        else (startDate == null || !createdAt.before(startDate)) &&
-                (endDate == null || !createdAt.after(endDate))
-    }
-}
-
-private suspend fun applyMasterFilters(
-    repository: MasterJobRepository,
-    filterData: com.example.myapplication.filter.FilterData
-): List<Master> {
-    val baseList = when (filterData.searchType) {
-        "profession" -> filterData.profession?.let { repository.searchMastersByProfession(it) }
-            ?: repository.getAllMasters()
-        "radius" -> filterData.userLocation?.let {
-            repository.searchMastersByRadius(it.latitude, it.longitude, filterData.radius?.toDouble() ?: 2000.0)
-        } ?: repository.getAllMasters()
-        "both" -> if (filterData.profession != null && filterData.userLocation != null) {
-            repository.searchMastersByProfessionAndRadius(
-                filterData.profession,
-                filterData.userLocation.latitude,
-                filterData.userLocation.longitude,
-                filterData.radius?.toDouble() ?: 2000.0
-            )
-        } else repository.getAllMasters()
-        else -> repository.getAllMasters()
-    }
-    return filterByDate(baseList, filterData.startDate, filterData.endDate)
-}
-
-private suspend fun applyJobFilters(
-    repository: MasterJobRepository,
-    filterData: com.example.myapplication.filter.FilterData
-): List<Job> {
-    val baseList = when (filterData.searchType) {
-        "profession" -> filterData.profession?.let { repository.searchJobsByProfession(it) }
-            ?: repository.getAllJobs()
-        "radius" -> filterData.userLocation?.let {
-            repository.searchJobsByRadius(it.latitude, it.longitude, filterData.radius?.toDouble() ?: 2000.0)
-        } ?: repository.getAllJobs()
-        "both" -> if (filterData.profession != null && filterData.userLocation != null) {
-            repository.searchJobsByProfessionAndRadius(
-                filterData.profession,
-                filterData.userLocation.latitude,
-                filterData.userLocation.longitude,
-                filterData.radius?.toDouble() ?: 2000.0
-            )
-        } else repository.getAllJobs()
-        else -> repository.getAllJobs()
-    }
-    return filterByDate(baseList, filterData.startDate, filterData.endDate)
-}
-
-// --- Lokacija korisnika ---
 private suspend fun getCurrentUserLocation(context: Context): LatLng? {
     return try {
         if (!hasLocationPermission(context)) return LatLng(43.32, 21.90)

@@ -104,7 +104,7 @@ class AuthViewModel: ViewModel() {
                             "prezime" to prezime,
                             "phoneNumber" to phoneNumber,
                             "email" to email,
-                            "imageUrl" to (imageUrl ?: "")
+                            "imageUrl" to (imageUrl ?: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png")
                         )
 
                         db.collection("korisnici").document(uid).set(userMap)

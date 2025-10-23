@@ -1,4 +1,4 @@
-package com.example.myapplication.filter
+package com.example.myapplication.Dialog
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,17 +14,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.models.Master
 import com.example.myapplication.models.MasterJobRepository
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun MasterRankingDialog(
-    masters: List<Master>,
     masterJobRepository: MasterJobRepository,
-    onDismiss: () -> Unit,
-    onUpdateMasters: (List<Master>) -> Unit
+    onDismiss: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var localMasters by remember { mutableStateOf(masters) }
+    var masters by remember { mutableStateOf<List<Master>>(emptyList()) }
+
+    // Listener za automatsko osvežavanje kad Firestore promeni podatke
+    LaunchedEffect(Unit) {
+        masterJobRepository.listenToMasters { updatedMasters ->
+            masters = updatedMasters.sortedByDescending { it.rating } // sortirano po ratingu
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -33,7 +40,7 @@ fun MasterRankingDialog(
             LazyColumn(
                 modifier = Modifier.heightIn(max = 400.dp)
             ) {
-                items(localMasters) { master ->
+                items(masters) { master ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -57,22 +64,23 @@ fun MasterRankingDialog(
                                         .size(28.dp)
                                         .clickable {
                                             coroutineScope.launch {
-                                                // Update rating
+                                                val userId = masterJobRepository.getCurrentUserId()
+                                                val alreadyRated = masterJobRepository.hasUserRatedMaster(master.id, userId)
+
+                                                if (alreadyRated) {
+                                                    return@launch
+                                                }
+
+                                                val newReviewCount = master.reviewCount + 1
+                                                val newRating = ((master.rating * master.reviewCount) + star) / newReviewCount
+
                                                 masterJobRepository.updateMasterRating(
                                                     masterId = master.id,
-                                                    newRating = star.toDouble(),
-                                                    newReviewCount = master.reviewCount + 1
+                                                    newRating = newRating,
+                                                    newReviewCount = newReviewCount
                                                 )
-                                                // Update lokalni master
-                                                val updatedMaster = master.copy(
-                                                    rating = star.toDouble(),
-                                                    reviewCount = master.reviewCount + 1
-                                                )
-                                                localMasters = localMasters.map {
-                                                    if (it.id == updatedMaster.id) updatedMaster else it
-                                                }
-                                                // Update spoljnu listu
-                                                onUpdateMasters(localMasters)
+
+                                                masterJobRepository.saveUserRating(master.id, userId, star)
                                             }
                                         }
                                 )
@@ -90,4 +98,6 @@ fun MasterRankingDialog(
             }
         }
     )
+
+
 }
